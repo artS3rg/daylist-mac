@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.tag || github.ref }}
       - name: Build and verify app bundle
@@ -25,7 +25,7 @@ jobs:
           cp Info.plist "$app/Contents/"
           plutil -lint "$app/Contents/Info.plist"
           xcrun swiftc -swift-version 5 -parse-as-library -O -target arm64-apple-macos13.0 Daylist.swift -o "$app/Contents/MacOS/Daylist"
-          lipo -verify_arch arm64 "$app/Contents/MacOS/Daylist"
+          lipo "$app/Contents/MacOS/Daylist" -verify_arch arm64
           codesign --force --sign - "$app"
           codesign --verify --strict "$app"
           ditto -c -k --keepParent "$app" Daylist-Apple-Silicon.zip
