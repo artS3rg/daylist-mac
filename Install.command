@@ -9,12 +9,9 @@ fi
 stage="$(/usr/bin/mktemp -d "${TMPDIR:-/tmp}/Daylist.XXXXXX")"
 trap '/bin/rm -rf "$stage"' EXIT
 app="$stage/Дела.app"
-/bin/mkdir -p "$app/Contents/MacOS" "$HOME/Applications"
-/bin/cp Info.plist "$app/Contents/Info.plist"
+/bin/mkdir -p "$HOME/Applications"
 echo 'Собираю «Дела» для Apple Silicon…'
-/usr/bin/xcrun --sdk macosx swiftc -swift-version 5 -parse-as-library -O -target arm64-apple-macos13.0 Daylist.swift -o "$app/Contents/MacOS/Daylist"
-/usr/bin/codesign --force --sign - "$app"
-/usr/bin/codesign --verify --strict "$app"
+bash build.sh "$app"
 target="$HOME/Applications/Дела.app"
 if [[ -e "$target" ]]; then
     echo "Приложение уже существует: $target"

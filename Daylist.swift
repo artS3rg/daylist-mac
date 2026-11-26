@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import SwiftUI
 import UserNotifications
 
@@ -52,6 +53,7 @@ final class Notebook: ObservableObject {
 @MainActor
 final class Reminders: ObservableObject {
     @Published var status: UNAuthorizationStatus = .notDetermined
+    @Published var needsApproval = false
     @Published var problem: String?
     private let center = UNUserNotificationCenter.current()
     private var wanted: Bool?
@@ -75,27 +77,38 @@ final class Reminders: ObservableObject {
             wanted = nil
             status = await center.notificationSettings().authorizationStatus
             guard status == .authorized || status == .provisional else { continue }
-            if !hasOpen {
-                center.removePendingNotificationRequests(withIdentifiers: (2...6).map { "morning-" + String($0) })
-            }
             do {
-                for day in 2...6 {
-                    for hour in (hasOpen ? [11, 20] : [20]) {
-                        let morning = hour == 11
-                        let message = UNMutableNotificationContent()
-                        message.title = morning ? "Есть открытые задачи" : "Планы на завтра"
-                        message.body = morning ? "Откройте список и выберите следующую задачу." : "Запишите задачи, которыми хотите заняться завтра."
-                        message.sound = .default
+                var approval = false
+                var registrationError: Error?
+                for slot in ReminderSlot.allCases {
+                    let service = slot.agent
+                    if service.status == .notRegistered {
+                        do { try service.register() }
+                        catch { registrationError = error }
+                    }
+                    // Keep the calendar schedule as a fallback until the
+                    // background item is active, including upgrades from 1.1.
+                    if service.status == .enabled {
+                        center.removePendingNotificationRequests(withIdentifiers: slot.legacyIDs)
+                        continue
+                    }
+                    approval = true
+                    if slot == .morning && !hasOpen {
+                        center.removePendingNotificationRequests(withIdentifiers: slot.legacyIDs)
+                        continue
+                    }
+                    for day in 2...6 {
                         var date = DateComponents()
                         date.weekday = day
-                        date.hour = hour
+                        date.hour = slot.rawValue
                         date.minute = 0
                         let trigger = UNCalendarNotificationTrigger(dateMatching: date, repeats: true)
-                        let id = (morning ? "morning-" : "evening-") + String(day)
-                        try await center.add(UNNotificationRequest(identifier: id, content: message, trigger: trigger))
+                        let id = "\(slot.name)-\(day)"
+                        try await center.add(UNNotificationRequest(identifier: id, content: slot.content, trigger: trigger))
                     }
                 }
-                problem = nil
+                needsApproval = approval
+                problem = registrationError.map { "Фоновая служба: " + $0.localizedDescription }
             } catch {
                 problem = "Не удалось обновить напоминания. " + error.localizedDescription
             }
@@ -121,7 +134,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 }
 
-@main
 struct DaylistApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     var body: some Scene {
@@ -274,6 +286,11 @@ struct NotebookView: View {
                     }
                 }
             }.font(.caption).foregroundStyle(.secondary).padding(.top, 14)
+            if reminders.needsApproval {
+                Button("Разрешить фоновую работу для напоминаний после сна") {
+                    SMAppService.openSystemSettingsLoginItems()
+                }.font(.caption)
+            }
             if let error = reminders.problem {
                 Text(error).foregroundStyle(.red).font(.caption)
             }
