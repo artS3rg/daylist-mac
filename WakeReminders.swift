@@ -54,21 +54,32 @@ enum ReminderSlot: Int, CaseIterable {
         guard let id = occurrence(at: Date(), calendar: calendar) else { return }
         let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Daylist", isDirectory: true)
-        let receipt = directory.appendingPathComponent("last-" + name)
-        if (try? String(contentsOf: receipt, encoding: .utf8)) == id { return }
         let center = UNUserNotificationCenter.current()
         let status = await center.notificationSettings().authorizationStatus
         guard status == .authorized || status == .provisional else { return }
-        let book = Notebook()
-        if self == .morning && !book.readable { throw CocoaError(.fileReadUnknown) }
-        if self == .evening || book.entries.contains(where: { !$0.done }) {
+        var openTasks = false
+        if self == .morning {
+            let book = Notebook()
+            guard book.readable else { throw CocoaError(.fileReadUnknown) }
+            openTasks = book.entries.contains(where: { !$0.done })
+        }
+        try await process(id: id, directory: directory, openTasks: openTasks) {
             try await center.add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+        }
+    }
+
+    func process(id: String, directory: URL, openTasks: Bool, send: () async throws -> Void) async throws {
+        let receipt = directory.appendingPathComponent("last-" + name)
+        if (try? String(contentsOf: receipt, encoding: .utf8)) == id { return }
+        if self == .evening || openTasks {
+            try await send()
         }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try id.write(to: receipt, atomically: true, encoding: .utf8)
     }
 }
 
+#if !TEST_REMINDERS
 @main
 enum DaylistLauncher {
     @MainActor
@@ -102,3 +113,4 @@ enum DaylistLauncher {
         DaylistApp.main()
     }
 }
+#endif

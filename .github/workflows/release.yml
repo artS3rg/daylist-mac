@@ -22,6 +22,8 @@ jobs:
       - name: Build and verify app bundle
         run: |
           app="$RUNNER_TEMP/Дела.app"
+          xcrun swiftc -D TEST_REMINDERS -swift-version 5 -parse-as-library Daylist.swift WakeReminders.swift Tests/WakeTests.swift -o "$RUNNER_TEMP/check"
+          "$RUNNER_TEMP/check"
           bash build.sh "$app"
           ditto -c -k --keepParent "$app" Daylist-Apple-Silicon.zip
           ditto -x -k Daylist-Apple-Silicon.zip /Applications
@@ -33,6 +35,12 @@ jobs:
             job="gui/$(id -u)/local.daylist.notebook.$slot"
             launchctl print "$job"
             launchctl kickstart "$job"
+            for attempt in {1..15}; do
+              state="$(launchctl print "$job")"
+              if grep -q 'last exit code = 0' <<< "$state"; then break; fi
+              sleep 1
+            done
+            grep 'last exit code = 0' <<< "$state"
           done
           open "$installed"
           sleep 3
