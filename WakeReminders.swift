@@ -11,6 +11,14 @@ enum ReminderSlot: Int, CaseIterable {
     }
     var legacyIDs: [String] { (2...6).map { "\(name)-\($0)" } }
 
+    func registerIfNeeded() throws {
+        let service = agent
+        switch service.status {
+        case .enabled, .requiresApproval: break
+        default: try service.register()
+        }
+    }
+
     var content: UNMutableNotificationContent {
         let message = UNMutableNotificationContent()
         message.title = self == .morning ? "Есть открытые задачи" : "Планы на завтра"
@@ -79,7 +87,7 @@ enum DaylistLauncher {
         if args.dropFirst() == ["--check-background"] {
             do {
                 for slot in ReminderSlot.allCases {
-                    if slot.agent.status == .notRegistered { try slot.agent.register() }
+                    try slot.registerIfNeeded()
                     guard slot.agent.status == .enabled else {
                         NSLog("Agent %@ status %d", slot.name, slot.agent.status.rawValue)
                         exit(1)

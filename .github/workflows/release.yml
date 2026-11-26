@@ -27,6 +27,7 @@ jobs:
           ditto -x -k Daylist-Apple-Silicon.zip /Applications
           installed="/Applications/Дела.app"
           codesign --verify --strict "$installed"
+          /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$installed"
           "$installed/Contents/MacOS/Daylist" --check-background
           for slot in morning evening; do
             job="gui/$(id -u)/local.daylist.notebook.$slot"

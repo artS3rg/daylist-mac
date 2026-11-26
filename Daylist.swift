@@ -82,10 +82,8 @@ final class Reminders: ObservableObject {
                 var registrationError: Error?
                 for slot in ReminderSlot.allCases {
                     let service = slot.agent
-                    if service.status == .notRegistered {
-                        do { try service.register() }
-                        catch { registrationError = error }
-                    }
+                    do { try slot.registerIfNeeded() }
+                    catch { registrationError = error }
                     // Keep the calendar schedule as a fallback until the
                     // background item is active, including upgrades from 1.1.
                     if service.status == .enabled {
