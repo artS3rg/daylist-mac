@@ -172,6 +172,31 @@ enum Accent: String, CaseIterable {
     }
 }
 
+private enum Pig: String, CaseIterable {
+    case laptop = "Laptop", artist = "Painter", checkmark = "Icon", planner = "Planner"
+
+    private static let artwork: [Pig: NSImage] = {
+        var loaded: [Pig: NSImage] = [:]
+        for pig in allCases {
+            if let url = Bundle.main.url(forResource: pig.rawValue, withExtension: "png"),
+               let image = NSImage(contentsOf: url) {
+                image.isTemplate = false
+                loaded[pig] = image
+            }
+        }
+        return loaded
+    }()
+
+    @ViewBuilder func illustration(size: CGFloat) -> some View {
+        if let image = Self.artwork[self] {
+            Image(nsImage: image).renderingMode(.original).resizable().scaledToFit()
+                .frame(width: size, height: size).accessibilityHidden(true)
+        } else {
+            Text("🐷").font(.system(size: size * 0.78)).frame(width: size, height: size).accessibilityHidden(true)
+        }
+    }
+}
+
 struct NotebookView: View {
     @AppStorage("appearance") private var appearance = Appearance.system
     @AppStorage("accent") private var accent = Accent.green
@@ -186,8 +211,7 @@ struct NotebookView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
-                Image("Laptop").resizable().scaledToFit().frame(width: 62, height: 62)
-                    .accessibilityHidden(true)
+                Pig.laptop.illustration(size: 62)
                 VStack(alignment: .leading, spacing: 6) {
                     TimelineView(.periodic(from: .now, by: 60)) { context in
                         Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "ru_RU"))))
@@ -197,7 +221,7 @@ struct NotebookView: View {
                 }
                 Spacer()
                 Button { showingAppearance.toggle() } label: {
-                    Image("Painter").renderingMode(.original).resizable().scaledToFit().frame(width: 36, height: 36)
+                    Pig.artist.illustration(size: 36)
                 }
                 .buttonStyle(.plain).help("Оформление").accessibilityLabel("Оформление")
                 .popover(isPresented: $showingAppearance) {
@@ -235,8 +259,7 @@ struct NotebookView: View {
             let visible = book.entries.filter { $0.done == completed }
             if visible.isEmpty {
                 VStack(spacing: 12) {
-                    Image(completed ? "Icon" : "Planner").resizable().scaledToFit()
-                        .frame(width: 82, height: 82).accessibilityHidden(true)
+                    (completed ? Pig.checkmark : Pig.planner).illustration(size: 82)
                     Text(completed ? "Здесь появятся выполненные задачи" : "Открытых задач пока нет")
                         .foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -352,7 +375,10 @@ struct Editor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(isNew ? "Новая задача" : "Редактирование").font(.system(size: 26, design: .serif))
+            HStack(spacing: 10) {
+                Pig.laptop.illustration(size: 40)
+                Text(isNew ? "Новая задача" : "Редактирование").font(.system(size: 26, design: .serif))
+            }
             Text("Название").font(.headline)
             TextField("Что нужно сделать?", text: $entry.title).textFieldStyle(.roundedBorder)
                 .focused($titleFocused)

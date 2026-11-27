@@ -48,6 +48,14 @@ jobs:
           open "$installed"
           sleep 3
           pgrep -x Daylist
+          xcrun swiftc -target arm64-apple-macos13.0 Tests/Visual/CheckWindow.swift -o "$RUNNER_TEMP/check-window"
+          "$RUNNER_TEMP/check-window" "$(pgrep -x Daylist | head -1)" "$RUNNER_TEMP/Daylist-window.png"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Daylist-window
+          path: ${{ runner.temp }}/Daylist-window.png
+          if-no-files-found: ignore
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         env:
