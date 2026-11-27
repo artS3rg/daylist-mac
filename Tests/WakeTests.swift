@@ -3,6 +3,7 @@ import Foundation
 @main
 struct WakeTests {
     static func main() async throws {
+        try await checkNotes()
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 3 * 3600)!
         func date(_ day: Int, _ hour: Int) -> Date {

@@ -22,7 +22,7 @@ jobs:
       - name: Build and verify app bundle
         run: |
           app="$RUNNER_TEMP/Дела.app"
-          xcrun swiftc -D TEST_REMINDERS -swift-version 5 -parse-as-library Daylist.swift WakeReminders.swift Tests/WakeTests.swift -o "$RUNNER_TEMP/check"
+          xcrun swiftc -D TEST_REMINDERS -swift-version 5 -parse-as-library Daylist.swift RichNotes.swift WakeReminders.swift Tests/*.swift -o "$RUNNER_TEMP/check"
           "$RUNNER_TEMP/check"
           bash build.sh "$app"
           ditto -c -k --keepParent "$app" Daylist-Apple-Silicon.zip

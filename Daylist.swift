@@ -7,6 +7,7 @@ struct Entry: Identifiable, Codable, Equatable {
     var id = UUID()
     var title = ""
     var notes = ""
+    var notesRTF: Data?
     var done = false
 }
 
@@ -185,6 +186,8 @@ struct NotebookView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
+                Image("Laptop").resizable().scaledToFit().frame(width: 62, height: 62)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 6) {
                     TimelineView(.periodic(from: .now, by: 60)) { context in
                         Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "ru_RU"))))
@@ -194,7 +197,7 @@ struct NotebookView: View {
                 }
                 Spacer()
                 Button { showingAppearance.toggle() } label: {
-                    Image(systemName: "paintpalette").font(.title3)
+                    Image("Painter").renderingMode(.original).resizable().scaledToFit().frame(width: 36, height: 36)
                 }
                 .buttonStyle(.plain).help("Оформление").accessibilityLabel("Оформление")
                 .popover(isPresented: $showingAppearance) {
@@ -232,8 +235,8 @@ struct NotebookView: View {
             let visible = book.entries.filter { $0.done == completed }
             if visible.isEmpty {
                 VStack(spacing: 12) {
-                    Image(systemName: completed ? "checkmark.circle" : "list.bullet")
-                        .font(.system(size: 25, weight: .light)).foregroundStyle(.secondary)
+                    Image(completed ? "Icon" : "Planner").resizable().scaledToFit()
+                        .frame(width: 82, height: 82).accessibilityHidden(true)
                     Text(completed ? "Здесь появятся выполненные задачи" : "Открытых задач пока нет")
                         .foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -255,7 +258,7 @@ struct NotebookView: View {
                                     VStack(alignment: .leading, spacing: 5) {
                                         Text(item.title).font(.headline).strikethrough(item.done)
                                         if !item.notes.isEmpty {
-                                            Text(item.notes).lineLimit(2).foregroundStyle(.secondary)
+                                            Text(AttributedString(item.formattedNotes)).lineLimit(2)
                                         }
                                     }.multilineTextAlignment(.leading)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -333,6 +336,8 @@ struct NotebookView: View {
 
 struct Editor: View {
     @State var entry: Entry
+    @StateObject private var document: NoteDocument
+    @State private var formatError: String?
     let isNew: Bool
     let commit: (Entry) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -340,6 +345,7 @@ struct Editor: View {
 
     init(entry: Entry, isNew: Bool, commit: @escaping (Entry) -> Void) {
         _entry = State(initialValue: entry)
+        _document = StateObject(wrappedValue: NoteDocument(entry))
         self.isNew = isNew
         self.commit = commit
     }
@@ -351,20 +357,27 @@ struct Editor: View {
             TextField("Что нужно сделать?", text: $entry.title).textFieldStyle(.roundedBorder)
                 .focused($titleFocused)
             Text("Описание").font(.headline)
-            TextEditor(text: $entry.notes).font(.body).padding(5)
-                .scrollContentBackground(.hidden)
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.secondary.opacity(0.35)))
-                .frame(height: 110)
+            VStack(spacing: 0) {
+                NotesToolbar(document: document).padding(8)
+                Divider()
+                NotesCanvas(document: document).frame(height: 175)
+            }.overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.secondary.opacity(0.35)))
+            if let formatError { Text(formatError).foregroundStyle(.red) }
             HStack {
                 Spacer()
                 Button("Отмена") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button("Сохранить") {
                     var updated = entry
                     updated.title = entry.title.trimmingCharacters(in: .whitespacesAndNewlines)
-                    commit(updated)
+                    do {
+                        try updated.setNotes(document.view.attributedString())
+                        commit(updated)
+                    } catch {
+                        formatError = "Не удалось сохранить описание. " + error.localizedDescription
+                    }
                 }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
                     .disabled(entry.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-        }.padding(26).frame(width: 430).onAppear { titleFocused = true }
+        }.padding(24).frame(width: 540).onAppear { titleFocused = true }
     }
 }

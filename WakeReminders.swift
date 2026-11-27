@@ -24,6 +24,11 @@ enum ReminderSlot: Int, CaseIterable {
         message.title = self == .morning ? "Есть открытые задачи" : "Планы на завтра"
         message.body = self == .morning ? "Откройте список и выберите следующую задачу." : "Запишите задачи, которыми хотите заняться завтра."
         message.sound = .default
+        let illustration = self == .morning ? "Angry" : "Planner"
+        if let url = Bundle.main.url(forResource: illustration, withExtension: "png"),
+           let image = try? UNNotificationAttachment(identifier: name, url: url) {
+            message.attachments = [image]
+        }
         return message
     }
 
