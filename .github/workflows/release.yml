@@ -29,6 +29,9 @@ jobs:
           ditto -x -k Daylist-Apple-Silicon.zip /Applications
           installed="/Applications/Дела.app"
           codesign --verify --strict "$installed"
+          for asset in Angry.png Planner.png Laptop.png Painter.png Icon.png Daylist.icns; do
+            test -s "$installed/Contents/Resources/$asset"
+          done
           /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$installed"
           "$installed/Contents/MacOS/Daylist" --check-background
           for slot in morning evening; do

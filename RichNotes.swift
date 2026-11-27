@@ -22,6 +22,19 @@ private func marker(in line: String) -> NSRange? {
 }
 
 final class NotesTextView: NSTextView {
+    weak var owner: NoteDocument?
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let owner, event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command {
+            switch event.charactersIgnoringModifiers?.lowercased() {
+            case "b": owner.trait(.boldFontMask); return true
+            case "i": owner.trait(.italicFontMask); return true
+            case "u": owner.line(.underlineStyle); return true
+            default: break
+            }
+        }
+        return super.performKeyEquivalent(with: event)
+    }
     override func insertNewline(_ sender: Any?) {
         let selection = selectedRange()
         let text = string as NSString
@@ -46,6 +59,7 @@ final class NoteDocument: ObservableObject {
     let view = NotesTextView(frame: .zero)
     init(_ entry: Entry) {
         view.isRichText = true
+        view.owner = self
         view.importsGraphics = false
         view.allowsUndo = true
         view.drawsBackground = false
